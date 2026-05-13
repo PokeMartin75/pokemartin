@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>PokéMartin — Base de données produits</title>
+<style>
+  :root { --bg:#0d0f1a;--card:#161928;--border:#2a3050;--yellow:#ffd60a;--text:#e8eaf0;--muted:#6b7280;--green:#22c55e;--blue:#3b82f6; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+  h1{font-size:1.4rem;font-weight:800;color:var(--yellow);margin-bottom:4px}
+  .subtitle{color:var(--muted);font-size:0.85rem;margin-bottom:20px;line-height:1.6}
+  .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+  .tab{padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-size:0.85rem;font-weight:600;transition:all .15s}
+  .tab.active{background:var(--yellow);color:#000;border-color:var(--yellow)}
+  .search-bar{padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;outline:none;width:260px}
+  .search-bar:focus{border-color:var(--yellow)}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:900px}
+  thead th{background:var(--card);padding:10px 12px;text-align:left;font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:2;white-space:nowrap}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+  tbody tr:hover{background:rgba(255,214,10,.03)}
+  td{padding:8px 12px;font-size:.85rem;vertical-align:middle}
+  .prod-name{font-weight:700;min-width:180px}
+  .serie-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:600;background:rgba(255,214,10,.12);color:var(--yellow);white-space:nowrap}
+  .serie-badge.ch{background:rgba(59,130,246,.12);color:var(--blue)}
+  input.ed,textarea.ed{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:6px;color:var(--text);padding:5px 8px;font-size:.83rem;transition:all .15s;font-family:inherit;resize:none;width:100%}
+  input.ed:focus,textarea.ed:focus{outline:none;border-color:var(--yellow);background:rgba(255,214,10,.04)}
+  textarea.ed{min-height:52px;line-height:1.4}
+  .col-t{min-width:200px;max-width:230px}
+  .col-d{min-width:240px;max-width:320px}
+  .col-i{min-width:220px}
+  .img-thumb{width:38px;height:38px;object-fit:contain;border-radius:4px;margin-right:6px;vertical-align:middle;display:none}
+  .img-thumb.ok{display:inline}
+  .btn{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:.82rem;transition:all .15s}
+  .btn-y{background:var(--yellow);color:#000}
+  .btn-y:hover{filter:brightness(.9)}
+  .btn-o{background:none;border:1px solid var(--border);color:var(--muted)}
+  .btn-o:hover{border-color:var(--yellow);color:var(--yellow)}
+  .bar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .ctr{color:var(--muted);font-size:.82rem;margin-left:auto}
+  .chrow{background:rgba(255,214,10,.05)!important}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#000;padding:10px 18px;border-radius:10px;font-weight:700;font-size:.88rem;transform:translateY(80px);opacity:0;transition:all .3s;z-index:100}
+  .toast.show{transform:translateY(0);opacity:1}
+  .exparea{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;font-family:monospace;font-size:.73rem;color:#a0a0b0;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow-y:auto;margin-top:16px;display:none}
+  .stitle{font-size:.78rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:10px 12px 4px;background:rgba(255,214,10,.03);border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<h1>⚡ PokéMartin — Base de données produits</h1>
+<p class="subtitle">
+  Modifie les 3 champs pour chaque produit :<br>
+  <strong>Titre</strong> — affiché en haut de la modale &nbsp;·&nbsp;
+  <strong>Description</strong> — contenu détaillé (boosters, cartes, accessoires…) &nbsp;·&nbsp;
+  <strong>Image</strong> — URL directe vers l'image produit (colle l'URL et l'aperçu s'affiche)<br>
+  Quand tu as terminé, clique <strong>📋 Exporter JSON</strong> et renvoie-moi le texte exporté.
+</p>
+<div class="tabs">
+  <button class="tab active" onclick="ft('all',this)">Tous</button>
+  <button class="tab" onclick="ft('KR',this)">🇰🇷 Coréen</button>
+  <button class="tab" onclick="ft('CH',this)">🇨🇳 Chinois</button>
+</div>
+<div class="bar">
+  <input class="search-bar" id="s" placeholder="Rechercher…" oninput="render()">
+  <button class="btn btn-y" onclick="exp()">📋 Exporter JSON</button>
+  <button class="btn btn-o" onclick="rst()">↺ Réinitialiser</button>
+  <span class="ctr" id="ctr"></span>
+</div>
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th style="min-width:180px">Produit</th>
+    <th>Série</th>
+    <th class="col-t">Titre (modale)</th>
+    <th class="col-d">Description du contenu</th>
+    <th class="col-i">URL image</th>
+  </tr></thead>
+  <tbody id="tb"></tbody>
+</table>
+</div>
+<div class="exparea" id="ea"></div>
+<div class="toast" id="t">✅ JSON copié !</div>
+
+<script>
+const D={
+"Ninja Spinner":{l:"KR",s:"Série Méga",ti:"Ninja Spinner",de:"10 boosters · 10 cartes/booster · Set exclusif coréen",im:"https://pokecardex-scans.b-cdn.net/sets_kr/m4/logo.png"},
+"Nihil Zero":{l:"KR",s:"Série Méga",ti:"Nihil Zero",de:"10 boosters · 10 cartes/booster · Set exclusif coréen",im:"https://pokecardex-scans.b-cdn.net/sets_kr/m3/logo.png"},
+"Mega Dream":{l:"KR",s:"Série Méga",ti:"Mega Dream",de:"10 boosters · 10 cartes/booster · Set exclusif coréen",im:"https://pokecardex-scans.b-cdn.net/sets_kr/m2a/logo.png"},
+"Inferno X":{l:"KR",s:"Série Méga",ti:"Inferno X",de:"10 boosters · 10 cartes/booster · Set exclusif coréen",im:"https://pokecardex-scans.b-cdn.net/sets_kr/m2/logo.png"},
+"Mega Brave":{l:"KR",s:"Série Méga",ti:"Mega Brave",de:"10 boosters · 10 cartes/booster · Set exclusif coréen",im:"https://pokecardex-scans.b-cdn.net/sets_kr/m1L/logo.png"},
+"Mega Symphonia":{l:"KR",s:"Série Méga",ti:"Mega Symphonia",de:"10 boosters · 10 cartes/booster · Set exclusif coréen",im:"https://pokecardex-scans.b-cdn.net/sets_kr/m1S/logo.png"},
+"White Flare":{l:"KR",s:"Série Écarlate et Violet",ti:"White Flare",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv10a/logo.png"},
+"Black Bolt":{l:"KR",s:"Série Écarlate et Violet",ti:"Black Bolt",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv10b/logo.png"},
+"Glory of Team Rocket":{l:"KR",s:"Série Écarlate et Violet",ti:"Glory of Team Rocket",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv9a/logo.png"},
+"Heat Wave Arena":{l:"KR",s:"Série Écarlate et Violet",ti:"Heat Wave Arena",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv9b/logo.png"},
+"Battle Partners":{l:"KR",s:"Série Écarlate et Violet",ti:"Battle Partners",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv9/logo.png"},
+"Terastal Festival":{l:"KR",s:"Série Écarlate et Violet",ti:"Terastal Festival ex",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv8a/logo.png"},
+"Super Electric Breaker":{l:"KR",s:"Série Écarlate et Violet",ti:"Super Electric Breaker",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv8/logo.png"},
+"Paradise Dragona":{l:"KR",s:"Série Écarlate et Violet",ti:"Paradise Dragona",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv7a/logo.png"},
+"Stella Miracle":{l:"KR",s:"Série Écarlate et Violet",ti:"Stellar Miracle",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv7/logo.png"},
+"Night Wanderer":{l:"KR",s:"Série Écarlate et Violet",ti:"Night Wanderer",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv6a/logo.png"},
+"Mask of Change":{l:"KR",s:"Série Écarlate et Violet",ti:"Mask of Change",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv6/logo.png"},
+"Crimson Haze":{l:"KR",s:"Série Écarlate et Violet",ti:"Crimson Haze",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv5a/logo.png"},
+"Cyber Judge":{l:"KR",s:"Série Écarlate et Violet",ti:"Cyber Judge",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv5b/logo.png"},
+"Wild Force":{l:"KR",s:"Série Écarlate et Violet",ti:"Wild Force",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv5c/logo.png"},
+"Shiny Treasures ex":{l:"KR",s:"Série Écarlate et Violet",ti:"Shiny Treasures ex",de:"30 boosters · 5 cartes/booster · Pokémon Shiny ex",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv4a/logo.png"},
+"Future Flash":{l:"KR",s:"Série Écarlate et Violet",ti:"Future Flash",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv4b/logo.png"},
+"Ancient Roar":{l:"KR",s:"Série Écarlate et Violet",ti:"Ancient Roar",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv4c/logo.png"},
+"Raging Surf":{l:"KR",s:"Série Écarlate et Violet",ti:"Raging Surf",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv3a/logo.png"},
+"Ruler of the Black Flame":{l:"KR",s:"Série Écarlate et Violet",ti:"Ruler of the Black Flame",de:"30 boosters · 5 cartes/booster · Dracaufeu ex double face",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv3/logo.png"},
+"Pokemon 151":{l:"KR",s:"Série Écarlate et Violet",ti:"Pokémon 151",de:"20 boosters · 5 cartes/booster · 151 Pokémon de Kanto",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv2a/logo.png"},
+"Clay Burst":{l:"KR",s:"Série Écarlate et Violet",ti:"Clay Burst",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv2b/logo.png"},
+"Snow Hazard":{l:"KR",s:"Série Écarlate et Violet",ti:"Snow Hazard",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv2c/logo.png"},
+"Triplet Beat":{l:"KR",s:"Série Écarlate et Violet",ti:"Triplet Beat",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv1a/logo.png"},
+"Violet ex":{l:"KR",s:"Série Écarlate et Violet",ti:"Violet ex",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv1b/logo.png"},
+"Scarlet ex":{l:"KR",s:"Série Écarlate et Violet",ti:"Scarlet ex",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/sv1a/logo.png"},
+"VSTAR Universe":{l:"KR",s:"Série Épée et Bouclier",ti:"VSTAR Universe",de:"30 boosters · 5 cartes/booster · Arceus VSTAR, Dracaufeu VSTAR",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s12a/logo.png"},
+"Paradigm Trigger":{l:"KR",s:"Série Épée et Bouclier",ti:"Paradigm Trigger",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s12/logo.png"},
+"Incandescent Arcana":{l:"KR",s:"Série Épée et Bouclier",ti:"Incandescent Arcana",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s11a/logo.png"},
+"Lost Abyss":{l:"KR",s:"Série Épée et Bouclier",ti:"Lost Abyss",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s11/logo.png"},
+"Pokemon GO":{l:"KR",s:"Série Épée et Bouclier",ti:"Pokémon GO",de:"20 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s10b/logo.png"},
+"Dark Phantasma":{l:"KR",s:"Série Épée et Bouclier",ti:"Dark Phantasma",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s10a/logo.png"},
+"Time Gazer":{l:"KR",s:"Série Épée et Bouclier",ti:"Time Gazer",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s10/logo.png"},
+"Space Juggler":{l:"KR",s:"Série Épée et Bouclier",ti:"Space Juggler",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s10D/logo.png"},
+"Battle Region":{l:"KR",s:"Série Épée et Bouclier",ti:"Battle Region",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s9a/logo.png"},
+"Star Birth":{l:"KR",s:"Série Épée et Bouclier",ti:"Star Birth",de:"30 boosters · 5 cartes/booster · Arceus VSTAR",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s9/logo.png"},
+"VMAX Climax":{l:"KR",s:"Série Épée et Bouclier",ti:"VMAX Climax",de:"20 boosters · 5 cartes/booster · Cartes alternatives VMAX",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s8b/logo.png"},
+"25th Anniversary Collection":{l:"KR",s:"Série Épée et Bouclier",ti:"25th Anniversary Collection",de:"10 boosters · 5 cartes/booster · Édition 25ème anniversaire",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s8a/logo.png"},
+"Fusion ARTS":{l:"KR",s:"Série Épée et Bouclier",ti:"Fusion Arts",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s8/logo.png"},
+"Blue Sky Stream":{l:"KR",s:"Série Épée et Bouclier",ti:"Blue Sky Stream",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s7D/logo.png"},
+"Towering Perfection":{l:"KR",s:"Série Épée et Bouclier",ti:"Towering Perfection",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s7R/logo.png"},
+"Eevee Heroes":{l:"KR",s:"Série Épée et Bouclier",ti:"Eevee Heroes",de:"30 boosters · 5 cartes/booster · Toutes les évolutions d'Évoli",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s6a/logo.png"},
+"Jet Black Spirit":{l:"KR",s:"Série Épée et Bouclier",ti:"Jet Black Spirit",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s6K/logo.png"},
+"Silver Lance":{l:"KR",s:"Série Épée et Bouclier",ti:"Silver Lance",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s6H/logo.png"},
+"Matchless Fighter":{l:"KR",s:"Série Épée et Bouclier",ti:"Matchless Fighter",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s5I/logo.png"},
+"Rapid Strike Master":{l:"KR",s:"Série Épée et Bouclier",ti:"Rapid Strike Master",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s5R/logo.png"},
+"Single Strike Master":{l:"KR",s:"Série Épée et Bouclier",ti:"Single Strike Master",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s5a/logo.png"},
+"Shiny Star V":{l:"KR",s:"Série Épée et Bouclier",ti:"Shiny Star V",de:"30 boosters · 5 cartes/booster · Pokémon Shiny V",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s4a/logo.png"},
+"Electricfying (Bolt) Tackle":{l:"KR",s:"Série Épée et Bouclier",ti:"Electricfying Tackle",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s4/logo.png"},
+"Legendary Pulse":{l:"KR",s:"Série Épée et Bouclier",ti:"Legendary Pulse",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s3a/logo.png"},
+"Infinity Zone":{l:"KR",s:"Série Épée et Bouclier",ti:"Infinity Zone",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s3/logo.png"},
+"Explosive Flame Walker":{l:"KR",s:"Série Épée et Bouclier",ti:"Explosive Flame Walker",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s2a/logo.png"},
+"Rebellion Crash":{l:"KR",s:"Série Épée et Bouclier",ti:"Rebellion Crash",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s2/logo.png"},
+"VMAX Rising":{l:"KR",s:"Série Épée et Bouclier",ti:"VMAX Rising",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s1a/logo.png"},
+"Sword":{l:"KR",s:"Série Épée et Bouclier",ti:"Sword",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s1W/logo.png"},
+"Shield":{l:"KR",s:"Série Épée et Bouclier",ti:"Shield",de:"30 boosters · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_kr/s1H/logo.png"},
+"Gem Pack Badge Set":{l:"CH",s:"Gem Packs",ti:"Gem Pack Badge Set",de:"3 boosters (Vol.1+2+3) · 1 carte promo stampée (Poussacha/Chochodile/Coiffeton) · 1 badge aléatoire (47 types)",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CBP/logo.png"},
+"Gem Pack 5":{l:"CH",s:"Gem Packs",ti:"Gem Pack Vol.5",de:"20 boosters · 5 cartes/booster · Pokémon exclusifs chinois simplifié",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CBB5C/logo.png"},
+"Gem Pack 4":{l:"CH",s:"Gem Packs",ti:"Gem Pack Vol.4",de:"20 boosters · 5 cartes/booster · Pokémon exclusifs chinois simplifié",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CBB4C/logo.png"},
+"Gem Pack 3":{l:"CH",s:"Gem Packs",ti:"Gem Pack Vol.3",de:"20 boosters · 5 cartes/booster · Pokémon exclusifs chinois simplifié",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CBB3C/logo.png"},
+"Gem Pack 2":{l:"CH",s:"Gem Packs",ti:"Gem Pack Vol.2",de:"20 boosters · 5 cartes/booster · Évoli & ses évolutions (Noctali, Phyllali, Nymphali)",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CBB2C/logo.png"},
+"Gem Pack 1":{l:"CH",s:"Gem Packs",ti:"Gem Pack Vol.1",de:"20 boosters · 5 cartes/booster · 1er Gem Pack chinois simplifié",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CBB1C/logo.png"},
+"151 Gathering VOL 4 - Thin":{l:"CH",s:"Autres séries",ti:"Collect 151 Gathering — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"151 Gathering VOL 4-Fat":{l:"CH",s:"Autres séries",ti:"Collect 151 Gathering — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"151 Surprise VOL 3-Thin":{l:"CH",s:"Autres séries",ti:"Collect 151 Surprise — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"151 Surprise VOL 3-Fat":{l:"CH",s:"Autres séries",ti:"Collect 151 Surprise — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"151 Hope VOL 2-Thin":{l:"CH",s:"Autres séries",ti:"Collect 151 Hope — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"151 Hope VOL 2-Fat":{l:"CH",s:"Autres séries",ti:"Collect 151 Hope — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"151 Journey VOL 1-Thin":{l:"CH",s:"Autres séries",ti:"Collect 151 Journey — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"151 Journey VOL 1-Fat":{l:"CH",s:"Autres séries",ti:"Collect 151 Journey — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"CSV9C Thin Box":{l:"CH",s:"Autres séries",ti:"Stellar Crystal CSV9C — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV9C/logo.png"},
+"CSV9C Fat Box":{l:"CH",s:"Autres séries",ti:"Stellar Crystal CSV9C — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV9C/logo.png"},
+"CSV8C Thin Box":{l:"CH",s:"Autres séries",ti:"Brilliant Fantasy CSV8C — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV8C/logo.png"},
+"CSV8C Fat Box":{l:"CH",s:"Autres séries",ti:"Brilliant Fantasy CSV8C — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV8C/logo.png"},
+"CSV7C Thin Box":{l:"CH",s:"Autres séries",ti:"Blade Awakening CSV7C — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV7C/logo.png"},
+"CSV7C Fat Box":{l:"CH",s:"Autres séries",ti:"Blade Awakening CSV7C — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV7C/logo.png"},
+"CSV6C Thin Box":{l:"CH",s:"Autres séries",ti:"True Mystery CSV6C — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV6C/logo.png"},
+"CSV6C Fat Box":{l:"CH",s:"Autres séries",ti:"True Mystery CSV6C — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV6C/logo.png"},
+"CSV5C Thin Box":{l:"CH",s:"Autres séries",ti:"Dark Crystal Blaze CSV5C — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV5C/logo.png"},
+"CSV5C Fat Box":{l:"CH",s:"Autres séries",ti:"Dark Crystal Blaze CSV5C — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV5C/logo.png"},
+"CSV4C Thin Box":{l:"CH",s:"Autres séries",ti:"Bonus Round CSV4C — Slim",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV4C/logo.png"},
+"CSV4C Fat Box":{l:"CH",s:"Autres séries",ti:"Bonus Round CSV4C — Jumbo",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV4C/logo.png"},
+"CSV3C Thin Box":{l:"CH",s:"Autres séries",ti:"Fearless Terastal CSV3C",de:"15 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV3C/logo.png"},
+"CSV2C Thin Box":{l:"CH",s:"Autres séries",ti:"Miracle Journey CSV2C",de:"15 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV2C/logo.png"},
+"CSV1C Thin Box":{l:"CH",s:"Autres séries",ti:"Eternal Birth CSV1C",de:"15 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSV1C/logo.png"},
+"CS6AC Thin Box":{l:"CH",s:"Autres séries",ti:"Azure Shadow Roar CS6AC",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS6aC/logo.png"},
+"CS6BC Thin Box":{l:"CH",s:"Autres séries",ti:"Azure Shadow Pursuit CS6BC",de:"20 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS6bC/logo.png"},
+"CS5AC Fat Box":{l:"CH",s:"Autres séries",ti:"Brave Stars CS5AC",de:"15 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS5aC/logo.png"},
+"CS5BC Fat Box":{l:"CH",s:"Autres séries",ti:"Brave Stars Brave CS5BC",de:"15 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS5bC/logo.png"},
+"CS4AC Thin Box":{l:"CH",s:"Autres séries",ti:"Nine Colors Friends CS4AC",de:"24 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS4aC/logo.png"},
+"CS4BC Thin Box":{l:"CH",s:"Autres séries",ti:"Nine Colors Origin CS4BC",de:"24 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS4bC/logo.png"},
+"CS3AC Fat Box":{l:"CH",s:"Autres séries",ti:"Primordial Arts Overgrow CS3AC",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS3aC/logo.png"},
+"CS3BC Fat Box":{l:"CH",s:"Autres séries",ti:"Primordial Arts Torrent CS3BC",de:"12 boosters jumbo · 20 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS3bC/logo.png"},
+"CS2AC Thin Box":{l:"CH",s:"Autres séries",ti:"Vivid Portrayals CS2AC",de:"1 booster slim · 5 cartes",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS2aC/logo.png"},
+"CS2BC Thin Box":{l:"CH",s:"Autres séries",ti:"Vivid Portrayals Indigo CS2BC",de:"1 booster slim · 5 cartes",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CS2bC/logo.png"},
+"CSM2AC Thin Box":{l:"CH",s:"Autres séries",ti:"Shining Synergy Shower CSM2AC",de:"1 booster slim · 5 cartes",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSM2aC/logo.png"},
+"CSM2BC Thin Box":{l:"CH",s:"Autres séries",ti:"Shining Synergy Supreme CSM2BC",de:"1 booster slim · 5 cartes",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSM2bC/logo.png"},
+"CSM2CC Thin Box":{l:"CH",s:"Autres séries",ti:"Shining Synergy Summon CSM2CC",de:"1 booster slim · 5 cartes",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSM2cC/logo.png"},
+"CSM1AC Thin Box":{l:"CH",s:"Autres séries",ti:"Storming Emergence Radiant CSM1AC",de:"1 booster slim · 5 cartes",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSM1aC/logo.png"},
+"CSM1BC Thin Box":{l:"CH",s:"Autres séries",ti:"Storming Emergence Verdant CSM1BC",de:"48 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSM1bC/logo.png"},
+"CSM1CC Thin Box":{l:"CH",s:"Autres séries",ti:"Storming Emergence Abundant CSM1CC",de:"24 boosters slim · 5 cartes/booster",im:"https://pokecardex-scans.b-cdn.net/sets_chn/CSM1cC/logo.png"},
+"Figurine Dream Painting 2":{l:"CH",s:"Coffrets",ti:"Dream Painting Collection Vol.2 — Figures Eau",de:"13 figurines peintes (12 régulières + 1 secrète) · Pokémon de type Eau",im:""},
+"Peluche Pikachu Gift Box":{l:"CH",s:"Coffrets",ti:"Peluche Pikachu Gift Box",de:"1 peluche Pikachu électrique · Boosters bonus",im:""},
+"151 Figurine set":{l:"CH",s:"Coffrets",ti:"Dream Painting Collection 151",de:"Figurines Mew, Pikachu, Dracaufeu — Série 151",im:""},
+"Coffret Salamèche 151":{l:"CH",s:"Coffrets",ti:"Coffret Premium 151 — Salamèche",de:"4 boosters · Cartes exclusives Salamèche, Reptincel, Dracaufeu",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"Coffret Bulbizarre 151":{l:"CH",s:"Coffrets",ti:"Coffret Premium 151 — Bulbizarre",de:"4 boosters · Cartes exclusives Bulbizarre, Herbizarre, Florizarre",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"Coffret Carapuce 151":{l:"CH",s:"Coffrets",ti:"Coffret Premium 151 — Carapuce",de:"4 boosters · Cartes exclusives Carapuce, Carabaffe, Tortank",im:"https://pokecardex-scans.b-cdn.net/sets_chn/151C/logo.png"},
+"30th Anniversary First Partner":{l:"CH",s:"Coffrets",ti:"30ème Anniversaire — First Partner",de:"4 boosters · Bulbizarre, Salamèche, Carapuce · Édition 30 ans Pokémon Chine",im:""},
+"Coffret nouvel an 2026":{l:"CH",s:"Coffrets",ti:"Coffret Nouvel An Chinois 2026",de:"5 boosters CSV9C · Thème Nouvel An Chinois",im:""},
+"Coffret festival Automne 2025":{l:"CH",s:"Coffrets",ti:"Coffret Festival Mi-Automne 2025",de:"3 boosters · Thème festival Mi-Automne",im:""},
+"Aquali Coffret":{l:"CH",s:"Coffrets",ti:"Aquali VMAX Advanced Gift Box",de:"3 coffrets · Aquali VMAX + cartes exclusives",im:""},
+"Pyroli Coffret":{l:"CH",s:"Coffrets",ti:"Pyroli VMAX Advanced Gift Box",de:"3 coffrets · Pyroli VMAX + cartes exclusives",im:""},
+"Voltali Coffret":{l:"CH",s:"Coffrets",ti:"Voltali VMAX Advanced Gift Box",de:"3 coffrets · Voltali VMAX + cartes exclusives",im:""},
+"Mini coffret Ectoplasma":{l:"CH",s:"Coffrets",ti:"Display Set Gift Box — Ectoplasma",de:"3 boosters · Mini coffret Ectoplasma",im:""},
+"Mini coffret Dracaufeu":{l:"CH",s:"Coffrets",ti:"Display Set Gift Box — Dracaufeu",de:"3 boosters · Mini coffret Dracaufeu",im:""},
+"Mini coffret Evoli":{l:"CH",s:"Coffrets",ti:"Display Set Gift Box — Évoli",de:"3 boosters · Mini coffret Évoli",im:""},
+"V-Union Pikachu":{l:"CH",s:"Coffrets",ti:"Pikachu V-UNION Card Frame Collection",de:"Cartes Pikachu V-UNION + cadre collector",im:""},
+"Trainer Gift Box":{l:"CH",s:"Coffrets",ti:"Trainer Collection Gift Box",de:"4 boosters · Dracaufeu V + Pikachu V",im:""},
+"Dragon boat festival box 2026":{l:"CH",s:"Coffrets",ti:"Dragon Boat Festival Box 2026",de:"5 boosters CSV9C · 1 magnet Pikachu/Gyarados · 1 pochette zongzi · Thème Duanwu 2026",im:""}
+};
+
+const ORIG=JSON.parse(JSON.stringify(D));
+let cur='all';
+
+function ft(f,btn){cur=f;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');render();}
+
+function render(){
+  const q=document.getElementById('s').value.toLowerCase();
+  const entries=Object.entries(D).filter(([n,d])=>{
+    if(cur!=='all'&&d.l!==cur)return false;
+    if(q&&!n.toLowerCase().includes(q)&&!d.s.toLowerCase().includes(q)&&!d.ti.toLowerCase().includes(q))return false;
+    return true;
+  });
+  document.getElementById('ctr').textContent=entries.length+' produits';
+  const groups={};
+  entries.forEach(([n,d])=>{if(!groups[d.s])groups[d.s]=[];groups[d.s].push([n,d]);});
+  let h='';
+  Object.entries(groups).forEach(([s,items])=>{
+    h+=`<tr><td colspan="5" class="stitle">${s} <span style="color:var(--muted);font-weight:400">(${items.length})</span></td></tr>`;
+    items.forEach(([n,d])=>{
+      const o=ORIG[n]||{};
+      const ch=d.ti!==o.ti||d.de!==o.de||d.im!==o.im;
+      const iid='i'+n.replace(/[^a-z0-9]/gi,'_');
+      h+=`<tr class="${ch?'chrow':''}">
+        <td class="prod-name">${esc(n)}</td>
+        <td><span class="serie-badge ${d.l==='CH'?'ch':''}">${esc(d.s)}</span></td>
+        <td class="col-t"><input class="ed" type="text" value="${esc(d.ti)}" onchange="up('${eq(n)}','ti',this.value)"></td>
+        <td class="col-d"><textarea class="ed" onchange="up('${eq(n)}','de',this.value)">${esc(d.de)}</textarea></td>
+        <td class="col-i">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <img id="${iid}" class="img-thumb${d.im?' ok':''}" src="${esc(d.im)}" alt="" onerror="this.classList.remove('ok')" onload="this.classList.add('ok')">
+            <input class="ed" type="text" value="${esc(d.im)}" placeholder="https://…" onchange="up('${eq(n)}','im',this.value);pi('${iid}',this.value)">
+          </div>
+        </td>
+      </tr>`;
+    });
+  });
+  document.getElementById('tb').innerHTML=h;
+}
+
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function eq(s){return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function pi(id,url){const img=document.getElementById(id);if(!img)return;if(url){img.src=url;img.classList.add('ok');}else img.classList.remove('ok');}
+function up(n,f,v){if(D[n])D[n][f]=v;}
+function rst(){Object.keys(D).forEach(k=>{D[k].ti=ORIG[k].ti;D[k].de=ORIG[k].de;D[k].im=ORIG[k].im;});render();}
+
+function exp(){
+  const out={};
+  Object.entries(D).forEach(([n,d])=>{out[n]={titre:d.ti,desc:d.de,img:d.im};});
+  const json=JSON.stringify(out,null,2);
+  const el=document.getElementById('ea');el.style.display='block';el.textContent=json;
+  navigator.clipboard.writeText(json).then(()=>{const t=document.getElementById('t');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);});
+}
+
+render();
+</script>
+</body>
+</html>
