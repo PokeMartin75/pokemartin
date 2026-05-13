@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>PokéMartin — Base de données produits</title>
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --card: #161928;
+    --border: #2a3050;
+    --yellow: #ffd60a;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --red: #ef4444;
+    --green: #22c55e;
+    --blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+  h1 { font-size: 1.4rem; font-weight: 800; color: var(--yellow); margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab { padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s; }
+  .tab.active { background: var(--yellow); color: #000; border-color: var(--yellow); }
+  .search-bar { width: 100%; padding: 10px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.9rem; margin-bottom: 16px; outline: none; }
+  .search-bar:focus { border-color: var(--yellow); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: var(--card); padding: 10px 12px; text-align: left; font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 2; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: rgba(255,214,10,0.04); }
+  td { padding: 10px 12px; font-size: 0.85rem; vertical-align: middle; }
+  .prod-name { font-weight: 700; }
+  .serie-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; background: rgba(255,214,10,0.12); color: var(--yellow); white-space: nowrap; }
+  .serie-badge.ch { background: rgba(59,130,246,0.12); color: var(--blue); }
+  input.editable { background: rgba(255,255,255,0.05); border: 1px solid transparent; border-radius: 6px; color: var(--text); padding: 4px 8px; width: 80px; text-align: center; font-size: 0.85rem; transition: all 0.15s; }
+  input.editable:focus { outline: none; border-color: var(--yellow); background: rgba(255,214,10,0.05); }
+  input.editable.wide { width: 160px; text-align: left; }
+  .btn { padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: all 0.15s; }
+  .btn-yellow { background: var(--yellow); color: #000; }
+  .btn-yellow:hover { background: #e6c009; }
+  .btn-outline { background: none; border: 1px solid var(--border); color: var(--muted); }
+  .btn-outline:hover { border-color: var(--yellow); color: var(--yellow); }
+  .btn-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .actions-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .counter { color: var(--muted); font-size: 0.82rem; margin-left: auto; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #000; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 0.88rem; transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 100; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .code-output { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-family: monospace; font-size: 0.75rem; color: var(--text); white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; margin-top: 16px; display: none; }
+  .changed { background: rgba(255,214,10,0.08) !important; }
+  .info-col { max-width: 200px; }
+</style>
+</head>
+<body>
+
+<h1>⚡ PokéMartin — Base de données produits</h1>
+<p class="subtitle">Modifie le nombre de boosters, cartes/booster et Pokémon vedettes. Clique "Exporter JS" pour copier le code à intégrer.</p>
+
+<div class="tabs">
+  <button class="tab active" onclick="filterTab('all',this)">Tous</button>
+  <button class="tab" onclick="filterTab('KR',this)">🇰🇷 Coréen</button>
+  <button class="tab" onclick="filterTab('CH',this)">🇨🇳 Chinois</button>
+</div>
+
+<div class="actions-bar">
+  <input class="search-bar" id="search" placeholder="Rechercher un produit..." oninput="renderTable()" style="margin-bottom:0;width:260px;">
+  <button class="btn btn-yellow" onclick="exportJS()">📋 Exporter JS</button>
+  <button class="btn btn-outline" onclick="resetChanges()">↺ Réinitialiser</button>
+  <span class="counter" id="counter"></span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Produit</th>
+      <th>Série</th>
+      <th>Boosters / display</th>
+      <th>Cartes / booster</th>
+      <th>Pokémon vedettes</th>
+    </tr>
+  </thead>
+  <tbody id="table-body"></tbody>
+</table>
+
+<div class="code-output" id="code-output"></div>
+<div class="toast" id="toast">✅ Copié dans le presse-papier !</div>
+
+<script>
+// ── DATA ──
+const DB = {
+  // KR — Série Méga
+  "Ninja Spinner":    {lang:"KR",serie:"Série Méga",packs:10,cpp:10,pokemon:"Ninja Spinner exclusif KR"},
+  "Nihil Zero":       {lang:"KR",serie:"Série Méga",packs:10,cpp:10,pokemon:"Nihil Zero exclusif KR"},
+  "Mega Dream":       {lang:"KR",serie:"Série Méga",packs:10,cpp:10,pokemon:"Mega Dream exclusif KR"},
+  "Inferno X":        {lang:"KR",serie:"Série Méga",packs:10,cpp:10,pokemon:"Inferno X exclusif KR"},
+  "Mega Brave":       {lang:"KR",serie:"Série Méga",packs:10,cpp:10,pokemon:"Mega Brave exclusif KR"},
+  "Mega Symphonia":   {lang:"KR",serie:"Série Méga",packs:10,cpp:10,pokemon:"Mega Symphonia exclusif KR"},
+  // KR — Série Écarlate et Violet
+  "White Flare":      {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"White Flare"},
+  "Black Bolt":       {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Black Bolt"},
+  "Glory of Team Rocket":{lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Élécroc, Sulfura de Galar"},
+  "Heat Wave Arena":  {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Magmar ex, Électhor ex"},
+  "Battle Partners":  {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Dracaufeu ex, Bourrinos ex"},
+  "Terastal Festival":{lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Pikachu ex Terastal, Mew ex"},
+  "Super Electric Breaker":{lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Raichu ex, Élecsprint ex"},
+  "Paradise Dragona": {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Dracolosse ex, Kyurem"},
+  "Stella Miracle":   {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Terapagos ex, Arceus"},
+  "Night Wanderer":   {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Palkia ex, Giratina ex"},
+  "Mask of Change":   {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Ogerpon ex"},
+  "Crimson Haze":     {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Scolocendre ex, Pecharunt"},
+  "Cyber Judge":      {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Fer Valiant ex, Gholdengo ex"},
+  "Wild Force":       {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Gourmelet ex, Koraidon ex"},
+  "Shiny Treasures ex":{lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Pokémon Shiny ex rares"},
+  "Future Flash":     {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Fer Laforêt ex, Miraidon ex"},
+  "Ancient Roar":     {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Bélier Sanglant ex, Koraidon ex"},
+  "Raging Surf":      {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Colossinge ex, Latios ex"},
+  "Ruler of the Black Flame":{lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Dracaufeu ex (deux faces)"},
+  "Pokemon 151":      {lang:"KR",serie:"Série Écarlate et Violet",packs:20,cpp:5,pokemon:"Mew ex, 151 Pokémon de Kanto"},
+  "Clay Burst":       {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Bébé Donphan ex, Miraidon ex"},
+  "Snow Hazard":      {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Bébé Donphan ex, Koraidon ex"},
+  "Triplet Beat":     {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Grusha, Arven, Penny SAR"},
+  "Violet ex":        {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Miraidon ex, Pikachu ex"},
+  "Scarlet ex":       {lang:"KR",serie:"Série Écarlate et Violet",packs:30,cpp:5,pokemon:"Koraidon ex, Armarouge ex"},
+  // KR — Série Épée et Bouclier
+  "VSTAR Universe":   {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Arceus VSTAR, Dracaufeu VSTAR"},
+  "Paradigm Trigger": {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Lugia VSTAR, Regidrago VSTAR"},
+  "Incandescent Arcana":{lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Alolan Ninetales VSTAR"},
+  "Lost Abyss":       {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Giratina VSTAR, Ditto VMAX"},
+  "Pokemon GO":       {lang:"KR",serie:"Série Épée et Bouclier",packs:20,cpp:5,pokemon:"Ronflex VMAX, Mewtwo VSTAR"},
+  "Dark Phantasma":   {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Hisuian Zoroark VSTAR"},
+  "Time Gazer":       {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Dialga VSTAR, Dracaufeu VSTAR"},
+  "Space Juggler":    {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Palkia VSTAR"},
+  "Battle Region":    {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Hisuian Decidueye VSTAR"},
+  "Star Birth":       {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Arceus VSTAR"},
+  "VMAX Climax":      {lang:"KR",serie:"Série Épée et Bouclier",packs:20,cpp:5,pokemon:"Tous les VMAX"},
+  "25th Anniversary Collection":{lang:"KR",serie:"Série Épée et Bouclier",packs:10,cpp:5,pokemon:"Pikachu, Dracaufeu 25ème"},
+  "Fusion ARTS":      {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Mew VMAX, Hoopa VMAX"},
+  "Blue Sky Stream":  {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Évoli VMAX, Rayquaza VMAX"},
+  "Towering Perfection":{lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Solgaleo, Lunala VMAX"},
+  "Eevee Heroes":     {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Toutes les évolutions d'Évoli VMAX"},
+  "Jet Black Spirit": {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Gengar VMAX, Tyranitar VMAX"},
+  "Silver Lance":     {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Zacian, Pikachu VMAX"},
+  "Matchless Fighter":{lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Urshifu VMAX Simple Frappe"},
+  "Rapid Strike Master":{lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Urshifu VMAX Mille Poings"},
+  "Single Strike Master":{lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Pinsir VMAX, Noctali VMAX"},
+  "Shiny Star V":     {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Pokémon Shiny V et VMAX"},
+  "Electricfying (Bolt) Tackle":{lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Pikachu VMAX"},
+  "Legendary Pulse":  {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Rayquaza VMAX"},
+  "Infinity Zone":    {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Dragapult VMAX, Eternatus VMAX"},
+  "Explosive Flame Walker":{lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Centiskorch VMAX"},
+  "Rebellion Crash":  {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Inteleon VMAX"},
+  "VMAX Rising":      {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Grightning VMAX, Torticolère VMAX"},
+  "Sword":            {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Zacian V"},
+  "Shield":           {lang:"KR",serie:"Série Épée et Bouclier",packs:30,cpp:5,pokemon:"Zamazenta V"},
+  // CH — Gem Packs
+  "Gem Pack Badge Set":{lang:"CH",serie:"Gem Packs",packs:10,cpp:1,pokemon:"Poussacha, Chochodile, Coiffeton + badge"},
+  "Gem Pack 5":       {lang:"CH",serie:"Gem Packs",packs:20,cpp:5,pokemon:"Capitaine Pikachu, Matourgeon, Canarbello"},
+  "Gem Pack 4":       {lang:"CH",serie:"Gem Packs",packs:20,cpp:5,pokemon:"Ponyta, Évoli, Flamiaou"},
+  "Gem Pack 3":       {lang:"CH",serie:"Gem Packs",packs:20,cpp:5,pokemon:"Miaouss, Ectoplasma, Malvalame"},
+  "Gem Pack 2":       {lang:"CH",serie:"Gem Packs",packs:20,cpp:5,pokemon:"Évoli & ses évolutions (Noctali, Phyllali, Nymphali)"},
+  "Gem Pack 1":       {lang:"CH",serie:"Gem Packs",packs:20,cpp:5,pokemon:"Poussacha, Chochodile, Capitaine Pikachu"},
+  // CH — Autres séries
+  "151 Gathering VOL 4 - Thin":{lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Pikachu Full Art, Mew ex"},
+  "151 Gathering VOL 4-Fat":  {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Pikachu Full Art, Mew ex"},
+  "151 Surprise VOL 3-Thin":  {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Mew ex 192/151 UR"},
+  "151 Surprise VOL 3-Fat":   {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Mew ex 192/151 UR"},
+  "151 Hope VOL 2-Thin":      {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Mew ex, Pikachu AR"},
+  "151 Hope VOL 2-Fat":       {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Mew ex, Pikachu AR"},
+  "151 Journey VOL 1-Thin":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Mew ex, Dracaufeu ex"},
+  "151 Journey VOL 1-Fat":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Mew ex, Dracaufeu ex"},
+  "CSV9C Thin Box":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Terapagos, Pikachu Stellar"},
+  "CSV9C Fat Box":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Terapagos, Pikachu Stellar"},
+  "CSV8C Thin Box":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Lokhlass ex, Carmine SAR, Kieran SAR"},
+  "CSV8C Fat Box":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Lokhlass ex, Carmine SAR, Kieran SAR"},
+  "CSV7C Thin Box":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Décryptomane ex"},
+  "CSV7C Fat Box":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Décryptomane ex"},
+  "CSV6C Thin Box":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Paume-de-Fer ex"},
+  "CSV6C Fat Box":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Paume-de-Fer ex"},
+  "CSV5C Thin Box":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Okuba ex"},
+  "CSV5C Fat Box":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Okuba ex"},
+  "CSV4C Thin Box":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Famignol ex, Gromago ex"},
+  "CSV4C Fat Box":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Famignol ex, Gromago ex"},
+  "CSV3C Thin Box":   {lang:"CH",serie:"Autres séries",packs:15,cpp:5,pokemon:"Arcanin ex"},
+  "CSV2C Thin Box":   {lang:"CH",serie:"Autres séries",packs:15,cpp:5,pokemon:"Miracle Journey"},
+  "CSV1C Thin Box":   {lang:"CH",serie:"Autres séries",packs:15,cpp:5,pokemon:"Eternal Birth"},
+  "CS6AC Thin Box":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Azure Shadow Roar"},
+  "CS6BC Thin Box":   {lang:"CH",serie:"Autres séries",packs:20,cpp:5,pokemon:"Azure Shadow Pursuit"},
+  "CS5AC Fat Box":    {lang:"CH",serie:"Autres séries",packs:15,cpp:20,pokemon:"Brave Stars"},
+  "CS5BC Fat Box":    {lang:"CH",serie:"Autres séries",packs:15,cpp:20,pokemon:"Brave Stars Brave"},
+  "CS4AC Thin Box":   {lang:"CH",serie:"Autres séries",packs:24,cpp:5,pokemon:"Nine Colors Friends"},
+  "CS4BC Thin Box":   {lang:"CH",serie:"Autres séries",packs:24,cpp:5,pokemon:"Nine Colors Origin"},
+  "CS3AC Fat Box":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Primordial Arts Overgrow"},
+  "CS3BC Fat Box":    {lang:"CH",serie:"Autres séries",packs:12,cpp:20,pokemon:"Primordial Arts Torrent"},
+  "CS2AC Thin Box":   {lang:"CH",serie:"Autres séries",packs:1,cpp:5,pokemon:"Vivid Portrayals"},
+  "CS2BC Thin Box":   {lang:"CH",serie:"Autres séries",packs:1,cpp:5,pokemon:"Vivid Portrayals Indigo"},
+  "CSM2AC Thin Box":  {lang:"CH",serie:"Autres séries",packs:1,cpp:5,pokemon:"Shining Synergy Shower"},
+  "CSM2BC Thin Box":  {lang:"CH",serie:"Autres séries",packs:1,cpp:5,pokemon:"Shining Synergy Supreme"},
+  "CSM2CC Thin Box":  {lang:"CH",serie:"Autres séries",packs:1,cpp:5,pokemon:"Shining Synergy Summon"},
+  "CSM1AC Thin Box":  {lang:"CH",serie:"Autres séries",packs:1,cpp:5,pokemon:"Storming Emergence Radiant"},
+  "CSM1BC Thin Box":  {lang:"CH",serie:"Autres séries",packs:48,cpp:5,pokemon:"Storming Emergence Verdant"},
+  "CSM1CC Thin Box":  {lang:"CH",serie:"Autres séries",packs:24,cpp:5,pokemon:"Storming Emergence Abundant"},
+  // CH — Coffrets
+  "Figurine Dream Painting 2":{lang:"CH",serie:"Coffrets",packs:0,cpp:0,pokemon:"13 figurines Pokémon type Eau"},
+  "Peluche Pikachu Gift Box": {lang:"CH",serie:"Coffrets",packs:0,cpp:0,pokemon:"1 peluche Pikachu"},
+  "151 Figurine set":         {lang:"CH",serie:"Coffrets",packs:0,cpp:0,pokemon:"Figurines Dream Painting 151"},
+  "Coffret Salamèche 151":    {lang:"CH",serie:"Coffrets",packs:4,cpp:5,pokemon:"Salamèche, Reptincel, Dracaufeu"},
+  "Coffret Bulbizarre 151":   {lang:"CH",serie:"Coffrets",packs:4,cpp:5,pokemon:"Bulbizarre, Herbizarre, Florizarre"},
+  "Coffret Carapuce 151":     {lang:"CH",serie:"Coffrets",packs:4,cpp:5,pokemon:"Carapuce, Carabaffe, Tortank"},
+  "30th Anniversary First Partner":{lang:"CH",serie:"Coffrets",packs:4,cpp:5,pokemon:"Bulbizarre, Salamèche, Carapuce"},
+  "Coffret nouvel an 2026":   {lang:"CH",serie:"Coffrets",packs:5,cpp:5,pokemon:"Pikachu, Magicarpe"},
+  "Coffret festival Automne 2025":{lang:"CH",serie:"Coffrets",packs:3,cpp:5,pokemon:"Pikachu, Dracaufeu"},
+  "Aquali Coffret":           {lang:"CH",serie:"Coffrets",packs:3,cpp:5,pokemon:"Aquali VMAX"},
+  "Pyroli Coffret":           {lang:"CH",serie:"Coffrets",packs:3,cpp:5,pokemon:"Pyroli VMAX"},
+  "Voltali Coffret":          {lang:"CH",serie:"Coffrets",packs:3,cpp:5,pokemon:"Voltali VMAX"},
+  "Mini coffret Ectoplasma":  {lang:"CH",serie:"Coffrets",packs:3,cpp:5,pokemon:"Ectoplasma"},
+  "Mini coffret Dracaufeu":   {lang:"CH",serie:"Coffrets",packs:3,cpp:5,pokemon:"Dracaufeu"},
+  "Mini coffret Evoli":       {lang:"CH",serie:"Coffrets",packs:3,cpp:5,pokemon:"Évoli"},
+  "V-Union Pikachu":          {lang:"CH",serie:"Coffrets",packs:0,cpp:0,pokemon:"Pikachu V-UNION"},
+  "Trainer Gift Box":         {lang:"CH",serie:"Coffrets",packs:4,cpp:5,pokemon:"Dracaufeu V, Pikachu V"},
+  "Dragon boat festival box 2026":{lang:"CH",serie:"Coffrets",packs:5,cpp:5,pokemon:"Pikachu, Gyarados, Bulbizarre"},
+};
+
+let currentFilter = 'all';
+let originalDB = JSON.parse(JSON.stringify(DB));
+let changed = {};
+
+function filterTab(lang, btn) {
+  currentFilter = lang;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function renderTable() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const tbody = document.getElementById('table-body');
+  const entries = Object.entries(DB).filter(([name, d]) => {
+    if (currentFilter !== 'all' && d.lang !== currentFilter) return false;
+    if (q && !name.toLowerCase().includes(q) && !d.serie.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  document.getElementById('counter').textContent = entries.length + ' produits';
+  tbody.innerHTML = entries.map(([name, d]) => {
+    const isChanged = changed[name];
+    return `<tr class="${isChanged ? 'changed' : ''}">
+      <td class="prod-name">${name}</td>
+      <td><span class="serie-badge ${d.lang === 'CH' ? 'ch' : ''}">${d.serie}</span></td>
+      <td><input class="editable" type="number" min="0" max="200" value="${d.packs}" onchange="update('${name}','packs',this.value)" /></td>
+      <td><input class="editable" type="number" min="0" max="20" value="${d.cpp}" onchange="update('${name}','cpp',this.value)" /></td>
+      <td><input class="editable wide" type="text" value="${d.pokemon}" onchange="update('${name}','pokemon',this.value)" /></td>
+    </tr>`;
+  }).join('');
+}
+
+function update(name, field, val) {
+  const parsed = field === 'pokemon' ? val : parseInt(val) || 0;
+  DB[name][field] = parsed;
+  if (parsed !== originalDB[name]?.[field]) {
+    changed[name] = true;
+  } else {
+    // Check if all fields match original
+    const d = DB[name], o = originalDB[name];
+    if (d.packs === o.packs && d.cpp === o.cpp && d.pokemon === o.pokemon) delete changed[name];
+  }
+  renderTable();
+}
+
+function resetChanges() {
+  Object.keys(changed).forEach(k => {
+    DB[k].packs = originalDB[k].packs;
+    DB[k].cpp = originalDB[k].cpp;
+    DB[k].pokemon = originalDB[k].pokemon;
+  });
+  changed = {};
+  renderTable();
+}
+
+function exportJS() {
+  // Generate the PRODUCT_INFO JS object to paste into index.html
+  const entries = Object.entries(DB);
+  let out = 'window.PRODUCT_INFO = {\n';
+  entries.forEach(([name, d], i) => {
+    const content = d.packs > 0
+      ? `${d.packs} booster${d.packs > 1 ? 's' : ''} · ${d.cpp} carte${d.cpp > 1 ? 's' : ''}/booster`
+      : 'Coffret collector';
+    // Keep existing img URLs from current PRODUCT_INFO
+    out += `  ${JSON.stringify(name)}: {content:${JSON.stringify(content)},pokemon:${JSON.stringify(d.pokemon)},packs:${d.packs},cardsPerPack:${d.cpp}}${i < entries.length-1 ? ',' : ''}\n`;
+  });
+  out += '};';
+
+  const el = document.getElementById('code-output');
+  el.style.display = 'block';
+  el.textContent = out;
+
+  navigator.clipboard.writeText(out).then(() => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  });
+}
+
+renderTable();
+</script>
+</body>
+</html>
